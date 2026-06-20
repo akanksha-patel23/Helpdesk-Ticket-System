@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>HelpdeskTicket.Application</RootNamespace>
+    <AssemblyName>HelpdeskTicket.Application</AssemblyName>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <Optimize>True</Optimize>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <Optimize>False</Optimize>
+  </PropertyGroup>
+
+  <!--
+    Application is the core business layer.
+    Contains: DTOs, Interfaces, Services, Repositories, Models, Data (DbConnectionFactory, SqlHelper).
+    Uses ADO.NET + Microsoft.Data.SqlClient — NO EF Core.
+    Uses ASP.NET Core PasswordHasher<T> for password hashing.
+    Uses System.IdentityModel.Tokens.Jwt for JWT token generation.
+  -->
+  <ItemGroup>
+    <!-- ADO.NET SQL Server driver -->
+    <PackageReference Include="MailKit" Version="4.17.0" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.1" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="8.0.0" />
+    <PackageReference Include="MimeKit" Version="4.17.0" />
+
+    <!-- Password hashing -->
+    <!--<PackageReference Include="Microsoft.AspNetCore.Identity.Core"    Version="8.0.0" /> -->
+
+    <!-- JWT token generation -->
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.4.0" />
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="7.4.0" />
+
+    <!-- DI + Options support -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.0" />
+
+    <!-- HTTP context accessor (for reading claims in services) -->
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HelpdeskTicket.Core\HelpdeskTicket.Core.csproj" />
+  </ItemGroup>
+
+</Project>

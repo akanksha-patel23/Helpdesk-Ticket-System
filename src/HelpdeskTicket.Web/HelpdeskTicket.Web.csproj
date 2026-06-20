@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>HelpdeskTicket.Web</RootNamespace>
+    <AssemblyName>HelpdeskTicket.Web</AssemblyName>
+    <UserSecretsId>helpdesk-web-secrets</UserSecretsId>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <Optimize>True</Optimize>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <Optimize>False</Optimize>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="wwwroot\uploads\4-mb-example-file_3bfceb15.pdf" />
+    <Content Remove="wwwroot\uploads\getting started with entity framework 6 code first using mvc 5_ee8aa576.pdf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\uploads\4-mb-example-file_3bfceb15.pdf" />
+    <None Include="wwwroot\uploads\getting started with entity framework 6 code first using mvc 5_ee8aa576.pdf" />
+  </ItemGroup>
+
+  <!--
+    Web (MVC) project — Views, Controllers, ViewModels, Services (HttpClient wrappers).
+    Does NOT reference Application or connect to DB directly.
+    Communicates with API via named HttpClient.
+    JWT token stored in server-side Session after login.
+  -->
+  <ItemGroup>
+    <!-- Razor runtime compilation (hot-reload views in dev) -->
+    <!--<PackageReference Include="MailKit" Version="4.3.0" />-->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="8.0.0" />
+
+    <!-- HttpClient -->
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+
+    <!-- Session -->
+    <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Web references Core only — for shared DTOs via ApiResponse wrappers, settings, constants -->
+    <ProjectReference Include="..\HelpdeskTicket.Core\HelpdeskTicket.Core.csproj" />
+	  <!-- Add Application project reference so Web can use DTOs/interfaces from Application -->
+	  <ProjectReference Include="..\HelpdeskTicket.Application\HelpdeskTicket.Application.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,204 @@
+﻿@model HelpdeskTicket.Web.ViewModels.Ticket.CreateTicketViewModel
+@{
+    ViewData["Title"] = "Create Ticket";
+    ViewData["ActivePage"] = "CreateTicket";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="rounded-3 p-2 bg-primary bg-opacity-10 text-primary fs-4">
+                <i class="bi bi-plus-circle"></i>
+            </div>
+            <div>
+                <h5 class="fw-bold mb-0">Create New Ticket</h5>
+                <p class="text-muted small mb-0">Describe your issue and we'll get it resolved.</p>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+
+                <form asp-action="Create" asp-controller="Ticket" method="post"
+                      enctype="multipart/form-data" id="createTicketForm">
+                    @Html.AntiForgeryToken()
+
+                    <!-- Title -->
+                    <div class="mb-3">
+                        <label asp-for="Title" class="form-label fw-semibold small">
+                            Title <span class="text-danger">*</span>
+                        </label>
+                        <input asp-for="Title" class="form-control"
+                               placeholder="Brief summary of the issue" maxlength="200" />
+                        <div class="d-flex justify-content-between">
+                            <span asp-validation-for="Title" class="text-danger small"></span>
+                            <span id="titleCount" class="text-muted small ms-auto">0 / 200</span>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label fw-semibold small">
+                            Description <span class="text-danger">*</span>
+                        </label>
+                        <textarea asp-for="Description" class="form-control" rows="5"
+                                  placeholder="Provide detailed information about the issue…"></textarea>
+                        <span asp-validation-for="Description" class="text-danger small"></span>
+                    </div>
+
+                    <!-- Category + Priority -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="CategoryId" class="form-label fw-semibold small">
+                                Category <span class="text-danger">*</span>
+                            </label>
+                            <select asp-for="CategoryId" asp-items="Model.Categories" class="form-select">
+                                <option value="">— Select Category —</option>
+                            </select>
+                            <span asp-validation-for="CategoryId" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="PriorityId" class="form-label fw-semibold small">
+                                Priority <span class="text-danger">*</span>
+                            </label>
+                            <select asp-for="PriorityId" asp-items="Model.Priorities" class="form-select">
+                                <option value="">— Select Priority —</option>
+                            </select>
+                            <span asp-validation-for="PriorityId" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <!-- Attachment -->
+                    <div class="mb-4">
+                        <label asp-for="Attachment" class="form-label fw-semibold small">
+                            Attachment <span class="text-muted fw-normal">(optional)</span>
+                        </label>
+                        <div id="dropZone"
+                             class="border border-2 border-dashed rounded-3 p-4 text-center"
+                             style="border-color:#dee2e6!important;cursor:pointer;transition:all .2s;">
+                            <i class="bi bi-cloud-upload fs-2 text-muted d-block mb-2"></i>
+                            <p class="mb-1 text-muted small">
+                                Drag & drop a file here, or
+                                <span class="text-primary fw-semibold" id="browseLink">browse</span>
+                            </p>
+                            <p class="text-muted" style="font-size:.75rem;">
+                                Allowed: PDF, PNG, JPEG, JPG &nbsp;|&nbsp; Max: 5 MB
+                            </p>
+                            <input asp-for="Attachment" type="file" id="attachmentInput"
+                                   class="d-none" accept=".pdf,.png,.jpeg,.jpg" />
+                        </div>
+                        <div id="filePreview" class="mt-2 d-none">
+                            <div class="d-flex align-items-center gap-2 p-2 rounded bg-light border">
+                                <i class="bi bi-file-earmark fs-5 text-primary"></i>
+                                <div class="flex-grow-1 overflow-hidden">
+                                    <div id="fileName" class="small fw-semibold text-truncate"></div>
+                                    <div id="fileSize" class="text-muted" style="font-size:.75rem;"></div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" id="removeFile">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <span asp-validation-for="Attachment" class="text-danger small"></span>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a asp-controller="Dashboard" asp-action="Index" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary fw-semibold" id="submitBtn">
+                            <span id="submitSpinner" class="spinner-border spinner-border-sm me-2 d-none"></span>
+                            <i class="bi bi-send me-1" id="submitIcon"></i>Submit Ticket
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/4.0.0/jquery.validate.unobtrusive.min.js"></script>
+    <script>
+        const MAX_SIZE   = 5 * 1024 * 1024;
+        const ALLOWED    = ['.pdf', '.png', '.jpeg', '.jpg'];
+        const input      = document.getElementById('attachmentInput');
+        const dropZone   = document.getElementById('dropZone');
+        const preview    = document.getElementById('filePreview');
+        const titleInput = document.getElementById('Title');
+
+        // Title counter
+        function updateTitleCount() {
+            document.getElementById('titleCount').textContent = `${titleInput.value.length} / 200`;
+        }
+        titleInput.addEventListener('input', updateTitleCount);
+        updateTitleCount();
+
+        // Browse
+        document.getElementById('browseLink').addEventListener('click', () => input.click());
+        dropZone.addEventListener('click', e => {
+            if (e.target.id !== 'browseLink') input.click();
+        });
+
+        // Drag & drop
+        dropZone.addEventListener('dragover', e => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#3b82f6';
+            dropZone.style.background  = '#eff6ff';
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.borderColor = '#dee2e6';
+            dropZone.style.background  = '';
+        });
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#dee2e6';
+            dropZone.style.background  = '';
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+
+        input.addEventListener('change', () => { if (input.files[0]) handleFile(input.files[0]); });
+
+        function handleFile(file) {
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (!ALLOWED.includes(ext)) { showFileError('Invalid file type. Allowed: PDF, PNG, JPEG, JPG.'); clearFile(); return; }
+            if (file.size > MAX_SIZE)   { showFileError('File exceeds the 5 MB size limit.'); clearFile(); return; }
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatBytes(file.size);
+            preview.classList.remove('d-none');
+            clearFileError();
+        }
+
+        document.getElementById('removeFile').addEventListener('click', () => {
+            clearFile(); preview.classList.add('d-none'); clearFileError();
+        });
+
+        function clearFile()          { input.value = ''; preview.classList.add('d-none'); }
+        function showFileError(msg)   { document.querySelector('span[data-valmsg-for="Attachment"]').textContent = msg; }
+        function clearFileError()     { document.querySelector('span[data-valmsg-for="Attachment"]').textContent = ''; }
+        function formatBytes(bytes)   {
+            if (bytes < 1024)    return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(2) + ' MB';
+        }
+
+        // Submit spinner
+        document.getElementById('createTicketForm').addEventListener('submit', function () {
+            if ($(this).valid()) {
+                document.getElementById('submitBtn').disabled = true;
+                document.getElementById('submitSpinner').classList.remove('d-none');
+                document.getElementById('submitIcon').classList.add('d-none');
+            }
+        });
+    </script>
+}

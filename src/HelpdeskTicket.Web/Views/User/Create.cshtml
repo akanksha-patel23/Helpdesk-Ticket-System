@@ -1,0 +1,91 @@
+﻿@model HelpdeskTicket.Web.ViewModels.User.UserFormViewModel
+@{
+    ViewData["Title"] = "Create User";
+    ViewData["ActivePage"] = "Users";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="rounded-3 p-2 bg-primary bg-opacity-10 text-primary fs-4">
+                <i class="bi bi-person-plus"></i>
+            </div>
+            <div>
+                <h5 class="fw-bold mb-0">Create New User</h5>
+                <p class="text-muted small mb-0">Admin can create users with any role.</p>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+
+                <form asp-action="Create" asp-controller="User" method="post">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="form-label fw-semibold small">Full Name <span class="text-danger">*</span></label>
+                        <input asp-for="FullName" class="form-control" placeholder="John Smith" />
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label fw-semibold small">Email Address <span class="text-danger">*</span></label>
+                        <input asp-for="Email" class="form-control" placeholder="user@example.com" />
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label fw-semibold small">Password <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input asp-for="Password" class="form-control" type="password"
+                                   placeholder="Min. 6 characters" id="pwdInput" />
+                            <button type="button" class="btn btn-outline-secondary" id="togglePwd" tabindex="-1">
+                                <i class="bi bi-eye" id="eyeIcon"></i>
+                            </button>
+                        </div>
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="RoleId" class="form-label fw-semibold small">Role <span class="text-danger">*</span></label>
+                        <select asp-for="RoleId" class="form-select">
+                            <option value="">— Select Role —</option>
+                            <option value="1">Admin</option>
+                            <option value="2">Developer</option>
+                            <option value="3">End User</option>
+                        </select>
+                        <span asp-validation-for="RoleId" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-4 form-check form-switch">
+                        <input asp-for="IsActive" class="form-check-input" role="switch" />
+                        <label asp-for="IsActive" class="form-check-label small">Active Account</label>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a asp-controller="User" asp-action="Index" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary fw-semibold">
+                            <i class="bi bi-person-check me-1"></i>Create User
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('togglePwd')?.addEventListener('click', function () {
+            const inp  = document.getElementById('pwdInput');
+            const icon = document.getElementById('eyeIcon');
+            const show = inp.type === 'password';
+            inp.type       = show ? 'text' : 'password';
+            icon.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+        });
+    </script>
+}

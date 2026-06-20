@@ -1,0 +1,436 @@
+﻿@model HelpdeskTicket.Web.ViewModels.Ticket.TicketDetailViewModel
+@{
+    int displayNumber;
+    if (!int.TryParse(Context.Request.Query["displayNumber"], out displayNumber))
+        displayNumber = Model.Ticket.Id;
+
+    ViewData["Title"] = $"Ticket #{displayNumber}";
+    ViewData["ActivePage"] = "Tickets";
+
+    var roleId = HelpdeskTicket.Web.Helpers.SessionHelper.GetRoleId(Context.Session);
+    var userId = HelpdeskTicket.Web.Helpers.SessionHelper.GetUserId(Context.Session);
+    var ticket = Model.Ticket;
+
+    bool isAdmin = roleId == 1;
+    bool isDeveloper = roleId == 2;
+    bool isEndUser = roleId == 3;
+    //bool canUpdate = isAdmin || isDeveloper || (isEndUser && ticket.CreatedById == userId);
+    bool canEditContent = isAdmin || isDeveloper || (isEndUser && ticket.CreatedById == userId);
+    bool canUpdateTicketSettings = isAdmin || isDeveloper;
+
+    string StatusBadge(string s) => s switch
+    {
+        "Open" => "bg-primary",
+        "Assigned" => "bg-info text-dark",
+        "In Progress" => "bg-warning text-dark",
+        "Resolved" => "bg-success",
+        "Closed" => "bg-dark",
+        _ => "bg-secondary"
+    };
+
+    string PriorityBadge(string p) => p switch
+    {
+        "Critical" => "bg-danger",
+        "High" => "bg-warning text-dark",
+        "Medium" => "bg-info text-dark",
+        "Low" => "bg-secondary",
+        _ => "bg-secondary"
+    };
+
+    bool isClosed = ticket.StatusName == "Closed";
+}
+
+<!-- Back + header -->
+<div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+    <a asp-controller="Ticket" asp-action="Index" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+    <div>
+        <h5 class="fw-bold mb-0">Ticket #@displayNumber</h5>
+        <p class="text-muted small mb-0">@ticket.CategoryName &middot; Raised by @ticket.CreatedByName</p>
+    </div>
+</div>
+
+<!-- ── TOP SECTION: Title / Description / Attachments / Comments ── -->
+<div class="row g-4 mb-4">
+    <div class="col-12">
+
+        <!-- Ticket body card -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-0 pt-3 pb-0
+                        d-flex align-items-center justify-content-between">
+                <h6 class="fw-bold mb-0" id="ticketTitleDisplay">@ticket.Title</h6>
+                @if (canEditContent)
+                {
+                    <button type="button" class="btn btn-sm btn-outline-secondary py-0"
+                            id="editTitleBtn" onclick="toggleEdit(true)">
+                        <i class="bi bi-pencil me-1"></i>Edit
+                    </button>
+                }
+            </div>
+            <div class="card-body">
+
+                @if (TempData["TitleUpdateSuccess"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible py-2 small mb-3">
+                        <i class="bi bi-check-circle me-1"></i>@TempData["TitleUpdateSuccess"]
+                        <button type="button" class="btn-close py-2" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+
+                <!-- Read-only description -->
+                <p class="mb-3" style="white-space:pre-wrap;" id="ticketDescDisplay">@ticket.Description</p>
+
+                <!-- Inline edit form — hidden until Edit clicked -->
+                @if (canEditContent)
+                {
+                    <form asp-controller="Ticket" asp-action="UpdateTitleDescription"
+                          method="post" id="titleDescForm" class="d-none mb-4">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="ticketId" value="@ticket.Id" />
+                        <input type="hidden" name="displayNumber" value="@displayNumber" />
+
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Title</label>
+                            <input type="text" name="title" class="form-control form-control-sm"
+                                   value="@ticket.Title" maxlength="200" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Description</label>
+                            <textarea name="description" class="form-control form-control-sm"
+                                  rows="4" style="resize:none;">@ticket.Description</textarea>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-warning btn-sm fw-semibold">
+                                <i class="bi bi-check2 me-1"></i>Save
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                    onclick="toggleEdit(false)">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                }
+
+                <!-- Attachments -->
+                <div class="mb-2">
+                    <div class="fw-semibold small mb-2">
+                        <i class="bi bi-paperclip me-1 text-primary"></i>
+                        Attachments
+                        @if (ticket.Attachments != null && ticket.Attachments.Any())
+                        {
+                            <span>(@ticket.Attachments.Count)</span>
+                        }
+                    </div>
+
+                    @if (ticket.Attachments != null && ticket.Attachments.Any())
+                    {
+                        <div class="d-flex flex-column gap-2 mb-3">
+                            @foreach (var att in ticket.Attachments)
+                            {
+                                <div class="d-flex align-items-center gap-2 p-2 rounded bg-light border">
+                                    <i class="bi bi-file-earmark text-primary"></i>
+                                    <div class="flex-grow-1 overflow-hidden">
+                                        <a href="@att.AttachmentPath" target="_blank"
+                                           class="small text-primary text-decoration-none fw-semibold d-block text-truncate">
+                                            @att.FileName
+                                        </a>
+                                        <span class="text-muted" style="font-size:.72rem;">
+                                            by @att.UploadedByName &middot;
+                                            @att.UploadedDateTime.ToString("dd MMM yyyy, hh:mm tt")
+                                        </span>
+                                    </div>
+                                    @if (att.UploadedById == userId)
+                                    {
+                                        <form asp-controller="Ticket" asp-action="DeleteAttachment"
+                                              method="post" class="mb-0"
+                                              onsubmit="return confirm('Delete this attachment?')">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="attachmentId" value="@att.Id" />
+                                            <input type="hidden" name="ticketId" value="@ticket.Id" />
+                                            <input type="hidden" name="displayNumber" value="@displayNumber" />
+
+                                            <button type="submit"
+                                                    class="btn btn-sm btn-outline-danger py-0 px-2"
+                                                    title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-2">No attachments yet.</p>
+                    }
+
+                    @if (!isClosed)
+                    {
+                        <form asp-controller="Ticket" asp-action="AddAttachment"
+                              method="post" enctype="multipart/form-data">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="ticketId" value="@ticket.Id" />
+                            <input type="hidden" name="displayNumber" value="@displayNumber" />
+
+                            <div class="input-group input-group-sm">
+                                <input type="file" name="attachment"
+                                       class="form-control form-control-sm"
+                                       accept=".pdf,.png,.jpeg,.jpg" />
+                                <button type="submit" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-upload me-1"></i>Add
+                                </button>
+                            </div>
+                            <div class="form-text" style="font-size:.72rem;">
+                                PDF, PNG, JPEG, JPG &middot; Max 5 MB
+                            </div>
+                        </form>
+                    }
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Comments card -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-0 pt-3 pb-0">
+                <h6 class="fw-semibold mb-0">
+                    <i class="bi bi-chat-dots me-2 text-primary"></i>
+                    Comments
+                    <span class="badge bg-light text-dark ms-1">@ticket.Comments.Count</span>
+                </h6>
+            </div>
+            <div class="card-body p-0">
+
+                @if (!ticket.Comments.Any())
+                {
+                    <div class="text-center py-4 text-muted small">
+                        <i class="bi bi-chat-square fs-2 opacity-25 d-block mb-2"></i>
+                        No comments yet. Be the first to comment.
+                    </div>
+                }
+                else
+                {
+                    <div class="px-3 pt-3">
+                        @foreach (var comment in ticket.Comments)
+                        {
+                            bool isOwn = comment.CreatedByName ==
+                            HelpdeskTicket.Web.Helpers.SessionHelper.GetFullName(Context.Session);
+
+                            <div class="d-flex gap-3 mb-4">
+                                <div class="rounded-circle bg-primary bg-opacity-10 text-primary
+                                                            d-flex align-items-center justify-content-center flex-shrink-0"
+                                     style="width:36px;height:36px;font-size:.85rem;font-weight:700;">
+                                    @comment.CreatedByName.Substring(0, 1).ToUpper()
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                        <span class="fw-semibold small">@comment.CreatedByName</span>
+                                        <span class="badge bg-light text-muted" style="font-size:.7rem;">
+                                            @comment.CreatedByRole
+                                        </span>
+                                        <span class="text-muted ms-auto" style="font-size:.75rem;">
+                                            @comment.CreatedDateTime.ToString("dd MMM yyyy, hh:mm tt")
+                                        </span>
+                                    </div>
+                                    <div class="p-3 rounded-3 small"
+                                         style="background:@(isOwn ? "#eff6ff" : "#f8fafc");
+                                                                border:1px solid @(isOwn ? "#bfdbfe" : "#e2e8f0");">
+                                        @comment.Body
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <div class="border-top px-3 py-3">
+                    @if (isClosed)
+                    {
+                        <p class="text-muted small mb-0 text-center">
+                            <i class="bi bi-lock me-1"></i>
+                            Comments are disabled for @ticket.StatusName tickets.
+                        </p>
+                    }
+                    else
+                    {
+                        <form asp-controller="Ticket" asp-action="AddComment" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="ticketId" value="@ticket.Id" />
+                            <input type="hidden" name="displayNumber" value="@displayNumber" />
+
+                            <div class="d-flex gap-2 align-items-start">
+                                <textarea name="commentBody" class="form-control form-control-sm"
+                                      rows="5" placeholder="Write a comment…"
+                                      maxlength="1000" id="commentInput"
+                                      style="resize:none;"></textarea>
+                                <button type="submit" class="btn btn-primary btn-sm px-3 flex-shrink-0">
+                                    <i class="bi bi-send"></i>
+                                </button>
+                            </div>
+                            <div class="d-flex justify-content-end mt-1">
+                                <span id="commentCount" class="text-muted" style="font-size:.75rem;">0 / 1000</span>
+                            </div>
+                        </form>
+                    }
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ── BOTTOM SECTION: Details card + Update card side by side ── -->
+<div class="row g-4">
+
+    <!-- Details card -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pt-3 pb-0">
+                <h6 class="fw-semibold mb-0">
+                    @* <i class="bi bi-info-circle me-2 text-secondary"></i> *@Details
+                </h6>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-5 text-muted fw-normal">Status</dt>
+                    <dd class="col-7">
+                        <span class="badge @StatusBadge(ticket.StatusName) rounded-pill">
+                            @ticket.StatusName
+                        </span>
+                    </dd>
+
+                    <dt class="col-5 text-muted fw-normal">Priority</dt>
+                    <dd class="col-7">
+                        <span class="badge @PriorityBadge(ticket.PriorityName) rounded-pill">
+                            @ticket.PriorityName
+                        </span>
+                    </dd>
+
+                    <dt class="col-5 text-muted fw-normal">Category</dt>
+                    <dd class="col-7">@ticket.CategoryName</dd>
+
+                    @if (isAdmin)
+                    {
+                        <dt class="col-5 text-muted fw-normal">Assigned To</dt>
+                        <dd class="col-7">@ticket.AssignedToName</dd>
+                        <dt class="col-5 text-muted fw-normal">Raised By</dt>
+                        <dd class="col-7">@ticket.CreatedByName</dd>
+                    }
+                    else if (isDeveloper)
+                    {
+                        <dt class="col-5 text-muted fw-normal">Raised By</dt>
+                        <dd class="col-7">@ticket.CreatedByName</dd>
+                    }
+                    else if (isEndUser)
+                    {
+                        <dt class="col-5 text-muted fw-normal">Assigned To</dt>
+                        <dd class="col-7">@ticket.AssignedToName</dd>
+                    }
+
+                    <dt class="col-5 text-muted fw-normal">Created</dt>
+                    <dd class="col-7">@ticket.CreatedDateTime.ToString("dd MMM yyyy, hh:mm tt")</dd>
+
+                    @if (ticket.UpdatedDateTime.HasValue)
+                    {
+                        <dt class="col-5 text-muted fw-normal">Updated</dt>
+                        <dd class="col-7">@ticket.UpdatedDateTime.Value.ToString("dd MMM yyyy, hh:mm tt")</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update card — Admin + Developer only -->
+    @if (canUpdateTicketSettings)
+    {
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 pt-3 pb-0">
+                    <h6 class="fw-semibold mb-0">
+                        <i class="bi bi-pencil-square me-2 text-warning"></i>Update Ticket
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form asp-controller="Ticket" asp-action="Update" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="ticketId" value="@ticket.Id" />
+                        <input type="hidden" name="displayNumber" value="@displayNumber" />
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Status</label>
+                            <select name="statusId" class="form-select form-select-sm">
+                                @foreach (var s in Model.Statuses)
+                                {
+                                    if (isDeveloper && (s.Text == "Open" || s.Text == "Closed" || s.Text == "Assigned"))
+                                        continue;
+                                    <option value="@s.Value"
+                                            selected="@(ticket.StatusId.ToString() == s.Value ? "selected" : null)">
+                                        @s.Text
+                                    </option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Priority</label>
+                            <select name="priorityId" class="form-select form-select-sm">
+                                @foreach (var p in Model.Priorities)
+                                {
+                                    <option value="@p.Value"
+                                            selected="@(ticket.PriorityId.ToString() == p.Value ? "selected" : null)">
+                                        @p.Text
+                                    </option>
+                                }
+                            </select>
+                        </div>
+
+                        @if (isAdmin)
+                        {
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Assign To</label>
+                                <select name="assignedToId" class="form-select form-select-sm">
+                                    <option value="">— Unassigned —</option>
+                                    @foreach (var dev in Model.Developers)
+                                    {
+                                        <option value="@dev.Value"
+                                                selected="@(ticket.AssignedToId?.ToString() == dev.Value ? "selected" : null)">
+                                            @dev.Text
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                        }
+
+                        <button type="submit" class="btn btn-warning btn-sm w-100 fw-semibold mt-2">
+                            <i class="bi bi-check2 me-1"></i>Save Changes
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
+
+@section Scripts {
+    <script>
+        // Comment counter
+        const input = document.getElementById('commentInput');
+        const count = document.getElementById('commentCount');
+        if (input && count) {
+            input.addEventListener('input', () => {
+                count.textContent = `${input.value.length} / 1000`;
+            });
+        }
+
+        // Toggle inline title/description edit
+        function toggleEdit(show) {
+            document.getElementById('titleDescForm').classList.toggle('d-none', !show);
+            document.getElementById('ticketDescDisplay').classList.toggle('d-none', show);
+            document.getElementById('editTitleBtn').classList.toggle('d-none', show);
+        }
+    </script>
+}

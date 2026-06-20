@@ -1,0 +1,405 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — Helpdesk</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <style>
+        #preloader {
+            position: fixed;
+            inset: 0;
+            background: #fff;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .spinner-ring {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #dee2e6;
+            border-top-color: #0d6efd;
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+        }
+
+        @@keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: 240px;
+            min-height: 100vh;
+            background: #1e293b;
+            color: #cbd5e1;
+            flex-shrink: 0;
+            transition: width .25s ease, transform .25s ease;
+            overflow: hidden;
+        }
+
+            .sidebar.collapsed {
+                width: 60px;
+            }
+
+            .sidebar .btn-hamburger {
+                color: #94a3b8;
+            }
+
+                .sidebar .btn-hamburger:hover {
+                    color: #ffffff;
+                }
+                .sidebar.collapsed .brand-text,
+                .sidebar.collapsed .nav-link span,
+                .sidebar.collapsed .user-info {
+                    display: none;
+                }
+
+                .sidebar.collapsed .nav-link {
+                    text-align: center;
+                    padding-left: 0;
+                    padding-right: 0;
+                }
+
+                    .sidebar.collapsed .nav-link i {
+                        margin-right: 0;
+                        font-size: 1.1rem;
+                    }
+
+                .sidebar.collapsed .sidebar-brand {
+                    justify-content: center;
+                }
+
+                .sidebar.collapsed .sidebar-brand .btn-hamburger {
+                    margin: 0;
+                    position: absolute;
+                    left: 12px;
+                }
+        /* Mobile: sidebar slides over content */
+        @@media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100%;
+                z-index: 1050;
+                transform: translateX(0);
+                width: 240px;
+            }
+
+                .sidebar.collapsed {
+                    transform: translateX(-100%);
+                    width: 240px;
+                }
+
+            .sidebar-overlay {
+                display: block !important;
+            }
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.4);
+            z-index: 1040;
+        }
+
+        .sidebar .nav-link {
+            color: #94a3b8;
+            padding: .6rem 1.25rem;
+            border-radius: 6px;
+            margin: 2px 8px;
+            transition: all .15s;
+            white-space: nowrap;
+        }
+
+            .sidebar .nav-link:hover, .sidebar .nav-link.active {
+                background: #0f172a;
+                color: #fff;
+            }
+
+            .sidebar .nav-link i {
+                margin-right: 8px;
+                width: 16px;
+                display: inline-block;
+                text-align: center;
+            }
+
+        .sidebar-brand {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #fff;
+            padding: 1.2rem 1.25rem;
+            border-bottom: 1px solid #334155;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            position: relative;
+            justify-content: center;
+        }
+
+        .main-content {
+            flex: 1;
+            background: #f8fafc;
+            min-height: 100vh;
+            overflow-x: hidden;
+            transition: margin-left .25s ease;
+        }
+
+        .topbar {
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: .75rem 1.5rem;
+        }
+
+        /* Hamburger button */
+        .btn-hamburger {
+            background: none;
+            border: none;
+            color: #475569;
+            padding: 4px 8px;
+            cursor: pointer;
+        }
+
+            .btn-hamburger:hover {
+                color: #0d6efd;
+            }
+
+            .btn-hamburger .bi {
+                font-size: 1.3rem;
+            }
+
+        
+    </style>
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+
+    <div id="preloader"><div class="spinner-ring"></div></div>
+
+    <!-- Overlay for mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+    @{
+        var isAuthenticated = HelpdeskTicket.Web.Helpers.SessionHelper.IsLoggedIn(Context.Session);
+        var roleName = HelpdeskTicket.Web.Helpers.SessionHelper.GetRoleName(Context.Session);
+        var fullName = HelpdeskTicket.Web.Helpers.SessionHelper.GetFullName(Context.Session);
+        var roleId = HelpdeskTicket.Web.Helpers.SessionHelper.GetRoleId(Context.Session);
+        var activePage = ViewData["ActivePage"]?.ToString() ?? "";
+    }
+
+    @if (isAuthenticated)
+    {
+        <div class="d-flex" id="appWrapper">
+
+            <!-- Sidebar -->
+            <nav class="sidebar d-flex flex-column" id="sidebar">
+                <div class="sidebar-brand">
+                    <button class="btn-hamburger" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <span class="brand-text"><i class="bi bi-headset me-2"></i>Helpdesk</span>
+                    <!-- Close button inside sidebar (mobile) -->
+                    <button class="btn-hamburger d-md-none" onclick="closeSidebar()" title="Close">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+
+                <ul class="nav flex-column mt-2 flex-grow-1">
+
+                    <li class="nav-item">
+                        <a class="nav-link @(activePage == "Dashboard" ? "active" : "")"
+                           asp-controller="Dashboard" asp-action="Index">
+                            <i class="bi bi-grid-1x2"></i> <span>Dashboard</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link @(activePage == "Tickets" ? "active" : "")"
+                           asp-controller="Ticket" asp-action="Index">
+                            <i class="bi bi-ticket-detailed"></i>
+                            <span>@(roleId == 3 ? "My Tickets" : "All Tickets")</span>
+                        </a>
+                    </li>
+
+                    @if (roleId == 3)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link @(activePage == "CreateTicket" ? "active" : "")"
+                               asp-controller="Ticket" asp-action="Create">
+                                <i class="bi bi-plus-circle"></i> <span>New Ticket</span>
+                            </a>
+                        </li>
+                    }
+
+                    @if (roleId == 1)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link @(activePage == "Users" ? "active" : "")"
+                               asp-controller="User" asp-action="Index">
+                                <i class="bi bi-people"></i> <span>Users</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @(activePage == "Categories" ? "active" : "")"
+                               asp-controller="Category" asp-action="Index">
+                                <i class="bi bi-tags"></i> <span>Categories</span>
+                            </a>
+                        </li>
+                    }
+
+                    <li class="nav-item mt-auto">
+                        <hr style="border-color:#334155;margin:8px 16px;" />
+                        <a class="nav-link @(activePage == "Profile" ? "active" : "")"
+                           asp-controller="User" asp-action="Profile">
+                            <i class="bi bi-person-circle"></i> <span>My Profile</span>
+                        </a>
+                    </li>
+
+                </ul>
+
+                <!-- User info + logout -->
+                <div class="user-info px-3 py-3 border-top" style="border-color:#334155!important">
+                    <div class="text-truncate small text-light fw-semibold">@fullName</div>
+                    <div class="text-truncate small mb-2" style="color:#64748b">@roleName</div>
+                    <form asp-controller="Account" asp-action="Logout" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                            <i class="bi bi-box-arrow-left me-1"></i>Logout
+                        </button>
+                    </form>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <div class="main-content d-flex flex-column">
+
+                <!-- Topbar with hamburger -->
+                @*  <div class="topbar d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn-hamburger" id="hamburgerBtn"
+                                onclick="toggleSidebar()" title="Toggle menu">
+                            <i class="bi bi-list"></i>
+                        </button> 
+                        <h6 class="mb-0 fw-semibold text-dark">@ViewData["Title"]</h6>
+                    </div>
+                    <span class="badge bg-primary rounded-pill">@roleName</span>
+                </div>*@
+
+                <div class="p-4 flex-grow-1">
+                    @RenderBody()
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        @RenderBody()
+    }
+
+    <!-- Toast container -->
+    <div class="position-fixed top-0 end-0 p-3" style="z-index:9000">
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="toast align-items-center text-bg-success border-0" role="alert" id="successToast">
+                <div class="d-flex">
+                    <div class="toast-body fw-semibold">
+                        <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        }
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="toast align-items-center text-bg-danger border-0" role="alert" id="errorToast">
+                <div class="d-flex">
+                    <div class="toast-body fw-semibold">
+                        <i class="bi bi-exclamation-circle me-2"></i>@TempData["ErrorMessage"]
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        }
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/4.0.0/jquery.validate.unobtrusive.min.js"></script>
+    <script>
+        // Preloader
+        window.addEventListener('load', () => document.getElementById('preloader').style.display = 'none');
+
+        // Toasts
+        ['successToast','errorToast'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) new bootstrap.Toast(el, { delay: 4000 }).show();
+        });
+
+        // ── Sidebar toggle ────────────────────────────────────────
+        const sidebar  = document.getElementById('sidebar');
+        const overlay  = document.getElementById('sidebarOverlay');
+        const PREF_KEY = 'hd_sidebar_collapsed';
+
+        function isMobile() { return window.innerWidth <= 768; }
+
+        function toggleSidebar() {
+            if (isMobile()) {
+                // Mobile: show/hide as overlay
+                sidebar.classList.toggle('collapsed');
+                overlay.style.display = sidebar.classList.contains('collapsed') ? 'none' : 'block';
+            } else {
+                // Desktop: collapse/expand (width 0 ↔ 240px)
+                const collapsed = sidebar.classList.toggle('collapsed');
+                localStorage.setItem(PREF_KEY, collapsed ? '1' : '0');
+            }
+        }
+
+        function closeSidebar() {
+            sidebar.classList.add('collapsed');
+            overlay.style.display = 'none';
+        }
+
+        // Restore preference on desktop
+        window.addEventListener('DOMContentLoaded', () => {
+            if (!isMobile() && localStorage.getItem(PREF_KEY) === '1')
+                sidebar.classList.add('collapsed');
+        });
+
+        // Close sidebar on resize to mobile if it was open in desktop mode
+        window.addEventListener('resize', () => {
+            if (isMobile()) {
+                overlay.style.display = sidebar.classList.contains('collapsed') ? 'none' : 'block';
+            } else {
+                overlay.style.display = 'none';
+            }
+        });
+
+                document.querySelectorAll('#sidebar .nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (!isMobile() && sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.remove('collapsed');
+                    localStorage.setItem(PREF_KEY, '0');
+                }
+            });
+        });
+
+                document.querySelectorAll('#sidebar .nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (!isMobile() && sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.remove('collapsed');
+                    localStorage.setItem(PREF_KEY, '0');
+                }
+            });
+        });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

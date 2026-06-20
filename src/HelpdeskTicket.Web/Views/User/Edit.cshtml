@@ -1,0 +1,133 @@
+﻿@model HelpdeskTicket.Web.ViewModels.User.UserFormViewModel
+@{
+    ViewData["Title"] = "Edit User";
+    ViewData["ActivePage"] = "Users";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="rounded-3 p-2 bg-warning bg-opacity-10 text-warning fs-4">
+                <i class="bi bi-person-gear"></i>
+            </div>
+            <div>
+                <h5 class="fw-bold mb-0">Edit User</h5>
+                <p class="text-muted small mb-0">Update role, status, or profile details.</p>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+
+                <form asp-action="Edit" asp-controller="User" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="UserId" />
+
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="form-label fw-semibold small">Full Name <span class="text-danger">*</span></label>
+                        <input asp-for="FullName" class="form-control" placeholder="John Smith" />
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label fw-semibold small">Email Address <span class="text-danger">*</span></label>
+                        <input asp-for="Email" class="form-control" />
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+
+                    <!-- Role elevation/assignment — key feature for Admin -->
+                    <div class="mb-3">
+                        <label asp-for="RoleId" class="form-label fw-semibold small">
+                            Role <span class="text-danger">*</span>
+                        </label>
+                        <select asp-for="RoleId" class="form-select">
+                            <option value="1" selected="@(Model.RoleId == 1)">Admin</option>
+                            <option value="2" selected="@(Model.RoleId == 2)">Developer</option>
+                            <option value="3" selected="@(Model.RoleId == 3)">End User</option>
+                        </select>
+                        <div class="form-text small text-muted mt-1">
+                            @* <i class="bi bi-info-circle me-1"></i> *@
+                            Changing role takes effect on the user's next login.
+                        </div>
+                        <span asp-validation-for="RoleId" class="text-danger small"></span>
+                    </div>
+
+                    <!-- Active toggle -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold small d-block">Account Status</label>
+                        <div class="form-check form-switch">
+                            <input asp-for="IsActive" class="form-check-input" role="switch"
+                                   style="width:2.5rem;height:1.25rem;" />
+                            <label asp-for="IsActive" class="form-check-label small ms-2">
+                                @(Model.IsActive ? "Active — user can log in" : "Inactive — login blocked")
+                            </label>
+                        </div>
+                        <div class="form-text small text-muted">
+                            <i class="bi bi-shield-exclamation me-1"></i>
+                            Inactive users cannot log in but their data is preserved.
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a asp-controller="User" asp-action="Index" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i>Cancel
+                        </a>
+
+                        @* Send forgot password reset link button (separate form) *@
+                        @* <form asp-controller="User" asp-action="SendResetLink" method="post" class="d-inline me-auto" onsubmit="return confirm('Send password reset link to @Model.Email ?');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="userId" value="@Model.UserId" />
+                            <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-envelope-plus me-1"></i>Send reset link
+                            </button>
+                        </form> *@
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                title="Send reset link"
+                                data-bs-toggle="modal"
+                                data-bs-target="#resetLinkModal"
+                                data-user-id="@Model.UserId"
+                                data-user-email="@Model.Email">
+                            <i class="bi bi-envelope-plus"></i>
+                        </button>
+
+                        <button type="submit" class="btn btn-warning fw-semibold">
+                            <i class="bi bi-check2 me-1"></i>Save Changes
+                        </button>
+                    </div>                    
+                </form>
+                @* for sending reset password link from admin page*@
+                <div class="modal fade" id="resetLinkModal" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h6 class="modal-title">Send Password Reset Link</h6>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                Send password reset link to <strong id="resetLinkEmail"></strong>?
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                <form id="resetLinkForm" asp-controller="User" asp-action="SendResetLink" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="userId" id="resetLinkUserId" />
+                                    <button type="submit" class="btn btn-primary btn-sm">Send Link</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    //admin -> send reset link alert box
+                document.getElementById('resetLinkModal')?.addEventListener('show.bs.modal', function (e) {
+            const btn = e.relatedTarget;
+            document.getElementById('resetLinkEmail').textContent = btn.getAttribute('data-user-email');
+            document.getElementById('resetLinkUserId').value = btn.getAttribute('data-user-id');
+        });
+</script>

@@ -1,0 +1,345 @@
+﻿@model HelpdeskTicket.Web.ViewModels.Ticket.TicketListViewModel
+@{
+    ViewData["Title"] = "Tickets";
+    ViewData["ActivePage"] = "Tickets";
+
+    var roleId = HelpdeskTicket.Web.Helpers.SessionHelper.GetRoleId(Context.Session);
+
+    string StatusBadge(string s) => s switch
+    {
+        // "Open"             => "bg-primary",
+        // "Assigned"         => "bg-info text-dark",
+        // "In Progress"      => "bg-warning text-dark",
+        // "Pending"          => "bg-secondary",
+        // "Waiting for User" => "bg-secondary",
+        // "Resolved"         => "bg-success",
+        // "Closed"           => "bg-dark",
+        // "Reopened"         => "bg-purple",
+        // "Cancelled"        => "bg-danger",
+        // _                  => "bg-secondary"
+        "Open" => "bg-primary",
+        "Assigned" => "bg-info text-dark",
+        "In Progress" => "bg-warning text-dark",
+        "Resolved" => "bg-success",
+        "Closed" => "bg-dark",
+        _ => "bg-secondary"
+    };
+
+    string PriorityBadge(string p) => p switch
+    {
+        "Critical" => "bg-danger",
+        "High" => "bg-warning text-dark",
+        "Medium" => "bg-info text-dark",
+        "Low" => "bg-secondary",
+        _ => "bg-secondary"
+    };
+
+    string PageUrl(int page)
+    {
+        var q = $"?pageNumber={page}&pageSize={Model.PageSize}";
+        if (!string.IsNullOrWhiteSpace(Model.SearchText)) q += $"&searchText={Uri.EscapeDataString(Model.SearchText)}";
+        if (Model.StatusId.HasValue) q += $"&statusId={Model.StatusId}";
+        if (Model.PriorityId.HasValue) q += $"&priorityId={Model.PriorityId}";
+        if (Model.CategoryId.HasValue) q += $"&categoryId={Model.CategoryId}";
+        return Url.Action("Index", "Ticket") + q;
+    }
+
+    var paged = Model.PagedResult;
+    var totalPages = paged.TotalPages;
+    var current = paged.PageNumber;
+}
+
+<!-- Page header -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h5 class="fw-bold mb-0">
+            @(roleId == 3 ? "My Tickets" : roleId == 2 ? "Assigned Tickets" : "All Tickets")
+        </h5>
+        <p class="text-muted small mb-0">
+            @paged.TotalCount ticket@(paged.TotalCount != 1 ? "s" : "") found
+        </p>
+    </div>
+    @if (roleId == 3)
+    {
+        <a asp-controller="Ticket" asp-action="Create" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i>New Ticket
+        </a>
+    }
+</div>
+
+<!-- Filter bar -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-3">
+        <form asp-action="Index" asp-controller="Ticket" method="get" id="filterForm">
+
+            <input type="hidden" name="pageNumber" value="1" />
+            <input type="hidden" name="pageSize" value="@Model.PageSize" />
+
+            <div class="row g-2 align-items-end">
+
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold mb-1">Search</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" name="searchText" class="form-control"
+                               placeholder="Search by title or description…"
+                               value="@Model.SearchText" />
+                    </div>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold mb-1">Category</label>
+                    <select name="categoryId" class="form-select form-select-sm">
+                        <option value="">All Categories</option>
+                        @foreach (var c in Model.Categories)
+                        {
+                            <option value="@c.Value" selected="@(Model.CategoryId?.ToString() == c.Value ? "selected" : null)">
+                                @c.Text
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold mb-1">Status</label>
+                    <select name="statusId" class="form-select form-select-sm">
+                        <option value="">All Statuses</option>
+                        @foreach (var s in Model.Statuses)
+                        {
+                            @* <option value="@s.Value"
+                                    @(Model.StatusId?.ToString() == s.Value ? "selected" : "")>
+                                @s.Text
+                            </option> *@
+                            <option value="@s.Value" selected="@(Model.StatusId?.ToString() == s.Value ? "selected" : null)">
+                                @s.Text
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold mb-1">Priority</label>
+                    <select name="priorityId" class="form-select form-select-sm">
+                        <option value="">All Priorities</option>
+                        @foreach (var p in Model.Priorities)
+                        {
+                            @* <option value="@p.Value"
+                                    @(Model.PriorityId?.ToString() == p.Value ? "selected" : "")>
+                                @p.Text
+                            </option> *@
+                            <option value="@p.Value" selected="@(Model.PriorityId?.ToString() == p.Value ? "selected" : null)">
+                                @p.Text
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                        <i class="bi bi-funnel me-1"></i>Filter
+                    </button>
+                    <a asp-action="Index" asp-controller="Ticket"
+                       class="btn btn-outline-secondary btn-sm"
+                       title="Clear filters">
+                        <i class="bi bi-x-circle"></i>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Ticket grid -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+
+        @if (!paged.Data.Any())
+        {
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-inbox fs-1 opacity-25 d-block mb-3"></i>
+                <p class="mb-1 fw-semibold">No tickets found.</p>
+                <p class="small">
+                    @if (!string.IsNullOrWhiteSpace(Model.SearchText) || Model.StatusId.HasValue || Model.PriorityId.HasValue)
+                    {
+                        <span>Try clearing your filters.</span>
+                    }
+                    else if (roleId == 3)
+                    {
+                        <span>You haven't raised any tickets yet.</span>
+                    }
+                    else
+                    {
+                        <span>No tickets exist in the system yet.</span>
+                    }
+                </p>
+                @if (roleId == 3)
+                {
+                    <a asp-controller="Ticket" asp-action="Create" class="btn btn-primary btn-sm mt-2">
+                        <i class="bi bi-plus-circle me-1"></i>Create your first ticket
+                    </a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3" style="width:60px;">#</th>
+                            <th>Title</th>
+                            <th style="width:130px;">Status</th>
+                            <th style="width:110px;">Priority</th>
+                            @if (roleId != 3)
+                            {
+                                <th style="width:130px;">Raised By</th>
+                            }
+                            <th style="width:130px;">Assigned To</th>
+                            <th style="width:110px;">Created</th>
+                            <th style="width:80px;" class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            var row = (current - 1) * paged.PageSize;
+                        }
+                        @foreach (var ticket in paged.Data)
+                        {
+                            <tr>
+                                @* <td class="ps-3 text-muted small fw-semibold">#@ticket.Id</td> *@
+                                <td class="ps-3 text-muted small fw-semibold">@(++row)</td>
+
+                                <td>
+                                    <a asp-controller="Ticket" asp-action="Details"
+                                       asp-route-id="@ticket.Id"
+                                       asp-route-displayNumber="@row"
+                                       class="text-dark text-decoration-none fw-semibold d-block">
+                                        @(ticket.Title.Length > 60 ? ticket.Title[..60] + "…" : ticket.Title)
+                                    </a>
+                                    <span class="text-muted small">@ticket.CategoryName</span>
+                                </td>
+
+                                <td>
+                                    <span class="badge @StatusBadge(ticket.StatusName) rounded-pill">
+                                        @ticket.StatusName
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="badge @PriorityBadge(ticket.PriorityName) rounded-pill">
+                                        @ticket.PriorityName
+                                    </span>
+                                </td>
+
+                                @if (roleId != 3)
+                                {
+                                    <td class="small text-muted">@ticket.CreatedByName</td>
+                                }
+
+                                <td class="small text-muted">@ticket.AssignedToName</td>
+
+                                <td class="small text-muted">
+                                    @ticket.CreatedDateTime.ToString("dd MMM yy")
+                                </td>
+
+                                <td class="text-center">
+                                    <a asp-controller="Ticket" asp-action="Details"
+                                       asp-route-id="@ticket.Id"
+                                       asp-route-displayNumber="@row"
+                                       class="btn btn-sm btn-outline-primary py-0 px-2"
+                                       title="View ticket">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="d-flex align-items-center justify-content-between px-3 py-3 border-top flex-wrap gap-2">
+
+                <div class="text-muted small">
+                    Showing
+                    <strong>@((current - 1) * paged.PageSize + 1)</strong>–<strong>@(Math.Min(current * paged.PageSize, paged.TotalCount))</strong>
+                    of <strong>@paged.TotalCount</strong>
+                </div>
+
+                @if (totalPages > 1)
+                {
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item @(!paged.HasPrevious ? "disabled" : "")">
+                                <a class="page-link" href="@(paged.HasPrevious? PageUrl(current - 1) : "#")">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+                            @{
+                                int startPage = Math.Max(1, current - 2);
+                                int endPage = Math.Min(totalPages, startPage + 4);
+                                startPage = Math.Max(1, endPage - 4);
+                            }
+                            @if (startPage > 1)
+                            {
+                                <li class="page-item">
+                                    <a class="page-link" href="@PageUrl(1)">1</a>
+                                </li>
+                                @if (startPage > 2)
+                                {
+                                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                                }
+                            }
+                            @for (int p = startPage; p <= endPage; p++)
+                            {
+                                <li class="page-item @(p == current ? "active" : "")">
+                                    <a class="page-link" href="@PageUrl(p)">@p</a>
+                                </li>
+                            }
+                            @if (endPage < totalPages)
+                            {
+                                @if (endPage < totalPages - 1)
+                                {
+                                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                                }
+                                <li class="page-item">
+                                    <a class="page-link" href="@PageUrl(totalPages)">@totalPages</a>
+                                </li>
+                            }
+                            <li class="page-item @(!paged.HasNext ? "disabled" : "")">
+                                <a class="page-link" href="@(paged.HasNext? PageUrl(current + 1) : "#")">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                }
+                else
+                {
+                    <div></div>
+                }
+
+                <!-- Rows per page — always visible -->
+                <form asp-action="Index" asp-controller="Ticket" method="get"
+                      class="d-flex align-items-center gap-2">
+                    <input type="hidden" name="pageNumber" value="1" />
+                    <input type="hidden" name="searchText" value="@Model.SearchText" />
+                    <input type="hidden" name="statusId" value="@Model.StatusId" />
+                    <input type="hidden" name="priorityId" value="@Model.PriorityId" />
+                    <input type="hidden" name="categoryId" value="@Model.CategoryId" />
+
+                    <label class="text-muted small">Rows</label>
+                    <select name="pageSize" class="form-select form-select-sm" style="width:75px;"
+                            onchange="this.form.submit()">
+                        @foreach (var size in new[] { 10, 25, 50 })
+                        {
+                            <option value="@size" selected="@(Model.PageSize == size ? "selected" : null)">@size</option>
+                        }
+                    </select>
+                </form>
+
+            </div>
+        }
+
+    </div>
+</div>
