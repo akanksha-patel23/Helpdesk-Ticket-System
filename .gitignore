@@ -433,3 +433,4 @@ appsettings.json
 appsettings.Development.json
 /src/HelpdeskTicket.Core/details_card_old.txt
 /src/HelpdeskTicket.Web/wwwroot/uploads
+/src/HelpdeskTicket.API/uploads
